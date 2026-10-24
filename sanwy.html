@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق خدمة ثانوي بنين</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
+    <meta name="theme-color" content="#1e3a8a">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; user-select: none; }
+        .coptic-gradient { background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%); }
+    </style>
+</head>
+<body class="flex justify-center min-h-screen bg-slate-900">
+
+    <div class="w-full max-w-md bg-slate-50 min-h-screen flex flex-col relative shadow-2xl overflow-hidden">
+
+        <!-- Push Notification Toast -->
+        <div id="pushToast" class="fixed top-4 max-w-sm w-11/12 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border-r-4 border-amber-500 z-50 transition-all duration-300 transform -translate-y-32 opacity-0 flex items-start gap-3">
+            <div class="bg-amber-500/20 text-amber-400 p-2 rounded-xl">
+                <i class="fa-solid fa-bell fa-shake text-lg"></i>
+            </div>
+            <div class="flex-1">
+                <h4 id="toastTitle" class="font-bold text-sm text-amber-400">إشعار جديد</h4>
+                <p id="toastBody" class="text-xs text-slate-200 mt-1"></p>
+            </div>
+            <button onclick="hideToast()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <!-- ================= AUTH SCREEN (تسجيل الدخول وإنشاء حساب) ================= -->
+        <div id="authScreen" class="fixed inset-0 max-w-md mx-auto coptic-gradient z-40 flex flex-col justify-center p-5 text-white overflow-y-auto">
+            <div class="text-center space-y-1.5 mb-4">
+                <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-500/20 border-2 border-amber-400/50 flex items-center justify-center text-amber-400 text-3xl font-bold shadow-lg">✙</div>
+                <p id="loginChurchName" class="text-[11px] text-amber-300 font-bold">كنيسة السيدة العذراء مريم </p>
+                <h1 id="loginServiceName" class="text-xl font-extrabold">خدمة ثانوي بنين</h1>
+                <p id="cloudStatusBadge" class="text-[10px] bg-white/10 inline-block px-3 py-0.5 rounded-full text-emerald-300">⚡ المزامنة الفورية مفعلة</p>
+            </div>
+
+            <!-- Toggle: Login vs Register -->
+            <div class="bg-white/10 p-1 rounded-2xl flex mb-4 border border-white/10">
+                <button id="btnModeLogin" onclick="setAuthMode('login')" class="flex-1 py-2 rounded-xl text-xs font-extrabold bg-amber-500 text-slate-950 transition">
+                    <i class="fa-solid fa-right-to-bracket ml-1"></i> تسجيل دخول
+                </button>
+                <button id="btnModeRegister" onclick="setAuthMode('register')" class="flex-1 py-2 rounded-xl text-xs font-bold text-white transition">
+                    <i class="fa-solid fa-user-plus ml-1"></i> إنشاء حساب جديد
+                </button>
+            </div>
+
+            <!-- 1. LOGIN FORM -->
+            <div id="loginBox" class="bg-white text-slate-800 p-5 rounded-3xl shadow-xl space-y-3">
+                <h2 class="font-extrabold text-sm text-center text-blue-950 border-b pb-2">تسجيل الدخول لحسابك</h2>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">رقم الموبايل:</label>
+                    <input id="loginPhone" type="tel" placeholder="01xxxxxxxxx" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-800">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">كلمة السر:</label>
+                    <input id="loginPassword" type="password" placeholder="••••••" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-800">
+                </div>
+                <p id="authErrorMsg" class="text-xs text-red-600 font-bold hidden"></p>
+                <button onclick="loginUser()" class="w-full coptic-gradient text-white font-extrabold text-xs py-3.5 rounded-xl shadow-lg hover:opacity-95 transition">
+                    دخول للتطبيق <i class="fa-solid fa-arrow-left mr-1"></i>
+                </button>
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-[10px] text-slate-500 space-y-1">
+                    <p class="font-bold text-slate-700">حسابات جاهزة للتجربة السريعة (أو أنشئ حسابك):</p>
+                    <p>🔹 <b>حساب مخدوم:</b> موبايل <code>01200000001</code> | سر: <code>123</code></p>
+                    <p>🔸 <b>حساب خادم:</b> موبايل <code>01000000001</code> | سر: <code>123</code></p>
+                </div>
+            </div>
+
+            <!-- 2. REGISTER FORM -->
+            <div id="registerBox" class="hidden bg-white text-slate-800 p-5 rounded-3xl shadow-xl space-y-2.5">
+                <h2 class="font-extrabold text-sm text-center text-blue-950 border-b pb-2">إنشاء حساب جديد في الخدمة</h2>
+
+                <!-- Role Selector -->
+                <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
+                    <button id="regRoleYouthBtn" onclick="setRegRole('youth')" class="py-1.5 rounded-lg text-xs font-extrabold bg-blue-900 text-white transition">أنا مخدوم (شاب)</button>
+                    <button id="regRoleServantBtn" onclick="setRegRole('servant')" class="py-1.5 rounded-lg text-xs font-bold text-slate-600 transition">أنا خادم</button>
+                </div>
+
+                <div>
+                    <label class="text-[11px] font-bold text-slate-600 block mb-0.5">الاسم الثلاثي:</label>
+                    <input id="regName" type="text" placeholder="اكتب اسمك الثلاثي..." class="w-full text-xs p-2.5 rounded-xl border border-slate-200">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-600 block mb-0.5">رقم الموبايل:</label>
+                        <input id="regPhone" type="tel" placeholder="01xxxxxxxxx" class="w-full text-xs p-2.5 rounded-xl border border-slate-200">
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-600 block mb-0.5">كلمة السر:</label>
+                        <input id="regPassword" type="password" placeholder="اختر كلمة سر" class="w-full text-xs p-2.5 rounded-xl border border-slate-200">
+                    </div>
+                </div>
+
+                <!-- Youth Specific Fields -->
+                <div id="regYouthFields" class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-600 block mb-0.5">السنة الدراسية:</label>
+                        <select id="regGrade" class="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-slate-50 font-bold">
+                            <option value="أولى ثانوي">أولى ثانوي</option>
+                            <option value="تانية ثانوي">تانية ثانوي</option>
+                            <option value="تالتة ثانوي">تالتة ثانوي</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-600 block mb-0.5">أب الاعتراف:</label>
+                        <input id="regFather" type="text" placeholder="أبونا..." class="w-full text-xs p-2.5 rounded-xl border border-slate-200">
+                    </div>
+                </div>
+
+                <!-- Servant Specific Fields -->
+                <div id="regServantFields" class="hidden space-y-1">
+                    <label class="text-[11px] font-bold text-amber-800 block">كود التحقق للخدام (لمنع تسجيل غير الخدام):</label>
+                    <input id="regServantPin" type="password" placeholder="أدخل كود الخدام السري (الافتراضي: 1234)" class="w-full text-xs p-2.5 rounded-xl border border-amber-300 bg-amber-50">
+                </div>
+
+                <p id="regErrorMsg" class="text-xs text-red-600 font-bold hidden"></p>
+
+                <button onclick="registerUser()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs py-3 rounded-xl shadow-md transition mt-2">
+                    إنشاء الحساب والدخول فوراً <i class="fa-solid fa-check mr-1"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= APP HEADER ================= -->
+        <header class="coptic-gradient text-white p-4 rounded-b-3xl shadow-lg relative">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 text-xl font-bold shadow-inner">✙</div>
+                    <div>
+                        <p id="headerChurchName" class="text-[10px] text-amber-300 font-bold">كنيسة السيدة العذراء مريم</p>
+                        <h1 id="headerServiceName" class="font-extrabold text-base leading-tight">خدمة ثانوي بنين</h1>
+                        <p id="roleSubtext" class="text-[11px] text-slate-300 font-semibold mt-0.5"></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="openSettingsModal()" title="إعدادات الخدمة" class="servant-only hidden bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 p-2 rounded-xl transition">
+                        <i class="fa-solid fa-gear text-sm"></i>
+                    </button>
+                    <button onclick="logout()" title="تسجيل الخروج" class="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-2.5 py-2 rounded-xl text-[10px] font-bold flex items-center gap-1 transition">
+                        <i class="fa-solid fa-right-from-bracket"></i> خروج
+                    </button>
+                </div>
+            </div>
+            <div class="mt-3 bg-white/10 backdrop-blur-sm rounded-xl p-2.5 border border-white/10 text-[11px]">
+                <span class="text-amber-400 font-bold"><i class="fa-solid fa-book-bible ml-1"></i> آية الأسبوع:</span>
+                <span id="headerVerse" class="text-slate-100"></span>
+            </div>
+        </header>
+
+        <!-- ================= MAIN CONTENT AREA ================= -->
+        <main class="flex-1 overflow-y-auto p-4 pb-24 space-y-4">
+
+            <!-- TAB 1: ANNOUNCEMENTS -->
+            <section id="tab-home" class="tab-content space-y-4">
+                <div class="bg-gradient-to-l from-amber-500 to-amber-600 text-white p-4 rounded-2xl shadow-md flex justify-between items-center">
+                    <div>
+                        <span class="bg-black/20 text-[10px] px-2.5 py-0.5 rounded-full font-bold">موعد الاجتماع</span>
+                        <h3 id="headerMeetingTime" class="font-extrabold text-base mt-1">الجمعة الساعة 6:30 مساءً</h3>
+                        <p class="text-xs text-amber-100 mt-0.5">التنبيهات والإعلانات تصل لحظياً</p>
+                    </div>
+                    <div class="text-center bg-white/20 p-2.5 rounded-xl"><i class="fa-solid fa-calendar-check text-2xl"></i></div>
+                </div>
+
+                <div class="servant-only hidden bg-white p-4 rounded-2xl shadow-sm border border-amber-200 space-y-2.5">
+                    <h3 class="font-bold text-xs text-slate-800"><i class="fa-solid fa-bullhorn text-amber-600 ml-1"></i> نشر إعلان جديد للشباب</h3>
+                    <input id="newAnnTitle" type="text" placeholder="عنوان الإعلان..." class="w-full text-xs p-2.5 rounded-xl border border-slate-200">
+                    <div class="flex gap-2">
+                        <select id="newAnnTag" class="text-xs p-2.5 rounded-xl border border-slate-200 bg-slate-50 font-bold">
+                            <option value="تنبيه هام">تنبيه هام</option>
+                            <option value="الاجتماع">الاجتماع</option>
+                            <option value="خلوة ومؤتمرات">خلوة ومؤتمرات</option>
+                        </select>
+                        <input id="newAnnBody" type="text" placeholder="تفاصيل الإعلان..." class="flex-1 text-xs p-2.5 rounded-xl border border-slate-200">
+                    </div>
+                    <button onclick="addAnnouncement()" class="w-full bg-blue-900 text-white font-bold text-xs py-2.5 rounded-xl">نشر وإرسال إشعار</button>
+                </div>
+
+                <div id="announcementsList" class="space-y-3"></div>
+            </section>
+
+            <!-- TAB 2: SEGMENTS -->
+            <section id="tab-segments" class="tab-content hidden space-y-4">
+                <div class="bg-blue-950 text-white p-4 rounded-2xl shadow-sm">
+                    <h2 class="font-extrabold text-sm text-amber-400"><i class="fa-solid fa-list-check ml-1"></i> فقرات الاجتماع القادم</h2>
+                    <p class="text-xs text-slate-300 mt-1">قدم طلب اشتراك في الفقرة التي تحبها ليصل طلبك للخادم المسؤول.</p>
+                </div>
+
+                <div class="servant-only hidden space-y-4">
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-amber-200 space-y-2.5">
+                        <h3 class="font-bold text-xs text-slate-800">إضافة فقرة جديدة</h3>
+                        <div class="flex gap-2">
+                            <input id="segTitle" type="text" placeholder="اسم الفقرة" class="flex-1 text-xs p-2 rounded-xl border border-slate-200">
+                            <input id="segTime" type="text" placeholder="الوقت (6:30 م)" class="w-24 text-xs p-2 rounded-xl border border-slate-200">
+                        </div>
+                        <input id="segDesc" type="text" placeholder="وصف المطلوب..." class="w-full text-xs p-2 rounded-xl border border-slate-200">
+                        <button onclick="addSegment()" class="w-full bg-blue-900 text-white text-xs font-bold py-2 rounded-xl">إضافة الفقرة</button>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                        <h3 class="font-bold text-xs text-slate-800 mb-2">طلبات اشتراك الشباب في الفقرات</h3>
+                        <div id="segmentRequestsList" class="space-y-2"></div>
+                    </div>
+                </div>
+
+                <div id="segmentsList" class="space-y-3"></div>
+            </section>
+
+            <!-- TAB 3: HYMNS & QUIZ -->
+            <section id="tab-spiritual" class="tab-content hidden space-y-4">
+                <div class="bg-slate-200 p-1 rounded-2xl flex">
+                    <button id="btnSubHymns" onclick="switchSpiritualSubTab('hymns')" class="flex-1 py-2 rounded-xl text-xs font-extrabold bg-blue-900 text-white shadow">مكتبة الترانيم</button>
+                    <button id="btnSubQuiz" onclick="switchSpiritualSubTab('quiz')" class="flex-1 py-2 rounded-xl text-xs font-bold text-slate-700">مسابقة الكتاب المقدس</button>
+                </div>
+
+                <div id="subtab-hymns" class="space-y-3">
+                    <input id="hymnSearch" oninput="renderHymns()" type="text" placeholder="ابحث عن ترنيمة..." class="w-full text-xs p-3 rounded-2xl border border-slate-200 bg-white">
+                    <div class="servant-only hidden bg-white p-4 rounded-2xl border border-amber-200 space-y-2">
+                        <h3 class="font-bold text-xs">إضافة ترنيمة جديدة</h3>
+                        <div class="flex gap-2">
+                            <input id="newHymnTitle" type="text" placeholder="اسم الترنيمة" class="flex-1 text-xs p-2 rounded-xl border">
+                            <select id="newHymnCat" class="text-xs p-2 rounded-xl border bg-slate-50 font-bold">
+                                <option value="ترانيم روحية">ترانيم روحية</option>
+                                <option value="ألحان قبطية">ألحان قبطية</option>
+                            </select>
+                        </div>
+                        <textarea id="newHymnLyrics" rows="2" placeholder="كلمات الترنيمة..." class="w-full text-xs p-2 rounded-xl border"></textarea>
+                        <button onclick="addHymn()" class="w-full bg-blue-900 text-white text-xs font-bold py-2 rounded-xl">حفظ الترنيمة</button>
+                    </div>
+                    <div id="hymnsList" class="space-y-3"></div>
+                </div>
+
+                <div id="subtab-quiz" class="hidden space-y-3">
+                    <div class="coptic-gradient text-white p-4 rounded-2xl flex justify-between items-center">
+                        <div>
+                            <span class="text-[11px] text-amber-300 font-bold">مسابقة الأسبوع</span>
+                            <h3 class="font-extrabold text-sm">اختبر معلوماتك الكتابية</h3>
+                        </div>
+                        <div class="bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl text-center">
+                            <span class="text-[10px] font-bold block">نقاطك</span>
+                            <span id="quizScoreDisplay" class="font-extrabold text-sm">0</span>
+                        </div>
+                    </div>
+                    <div class="servant-only hidden bg-white p-4 rounded-2xl border border-amber-200 space-y-2">
+                        <h3 class="font-bold text-xs">إضافة سؤال للمسابقة</h3>
+                        <input id="newQuizQ" type="text" placeholder="السؤال..." class="w-full text-xs p-2 rounded-xl border">
+                        <div class="grid grid-cols-3 gap-1">
+                            <input id="newQuizOpt0" type="text" placeholder="اختيار 1" class="text-xs p-2 rounded-lg border">
+                            <input id="newQuizOpt1" type="text" placeholder="اختيار 2" class="text-xs p-2 rounded-lg border">
+                            <input id="newQuizOpt2" type="text" placeholder="اختيار 3" class="text-xs p-2 rounded-lg border">
+                        </div>
+                        <div class="flex gap-2">
+                            <select id="newQuizCorrect" class="flex-1 text-xs p-2 rounded-lg border bg-slate-50 font-bold">
+                                <option value="0">الصحيح: اختيار 1</option>
+                                <option value="1">الصحيح: اختيار 2</option>
+                                <option value="2">الصحيح: اختيار 3</option>
+                            </select>
+                            <input id="newQuizRef" type="text" placeholder="الشاهد" class="w-28 text-xs p-2 rounded-lg border">
+                        </div>
+                        <button onclick="addQuizQuestion()" class="w-full bg-blue-900 text-white text-xs font-bold py-2 rounded-xl">نشر السؤال</button>
+                    </div>
+                    <div id="quizQuestionsList" class="space-y-3"></div>
+                </div>
+            </section>
+
+            <!-- TAB 4: SECRET Q&A -->
+            <section id="tab-qa" class="tab-content hidden space-y-4">
+                <div class="youth-only bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+                    <div class="flex items-center gap-2 text-emerald-700 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
+                        <i class="fa-solid fa-user-secret text-lg"></i>
+                        <p class="text-[11px] font-bold">سري 100%: سؤالك بيوصل للخدام بدون اسمك أو رقم موبايلك نهائياً!</p>
+                    </div>
+                    <select id="qaCategory" class="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-slate-50 font-bold">
+                        <option value="عقيدي وإيماني">عقيدي وإيماني</option>
+                        <option value="حياة روحية">حياة روحية وصلاة</option>
+                        <option value="مشاكل شخصية وعلاقات">مشاكل شخصية وعلاقات</option>
+                    </select>
+                    <textarea id="qaText" rows="3" placeholder="اكتب سؤالك هنا بحرية تامة..." class="w-full text-xs p-3 rounded-xl border border-slate-200"></textarea>
+                    <button onclick="submitSecretQuestion()" class="w-full bg-blue-900 text-white font-bold text-xs py-3 rounded-xl">إرسال السؤال بدون اسم</button>
+                </div>
+
+                <div class="servant-only hidden bg-white p-4 rounded-2xl border border-amber-200 space-y-3">
+                    <h3 class="font-bold text-xs text-slate-800"><i class="fa-solid fa-inbox text-amber-600 ml-1"></i> أسئلة سرية بانتظار رد الخادم</h3>
+                    <div id="pendingQuestionsList" class="space-y-3"></div>
+                </div>
+
+                <div class="space-y-2.5">
+                    <h3 class="font-extrabold text-xs text-slate-800">إجابات الأسئلة السابقة</h3>
+                    <div id="answeredQuestionsList" class="space-y-3"></div>
+                </div>
+            </section>
+
+            <!-- ================= TAB 5: SECRET CHAT (الشات السري المباشر بين المخدوم والخادم) ================= -->
+            <section id="tab-chat" class="tab-content hidden space-y-3">
+
+                <!-- 1. إعدادات هوية المخدوم في الشات -->
+                <div class="youth-only bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 space-y-2.5">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-xs text-slate-800"><i class="fa-solid fa-shield-halved text-blue-800 ml-1"></i> شات سري خاص مع الخادم</h3>
+                        <span class="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-200">متصل لحظياً</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">الظهور للخادم بـ:</label>
+                            <select id="youthChatIdentityMode" onchange="renderChatSection()" class="w-full text-[11px] p-2 rounded-xl border border-slate-200 bg-slate-50 font-bold">
+                                <option value="anon">هوية مجهولة (بكود سري)</option>
+                                <option value="real">باسمي الحقيقي</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">موجه إلى:</label>
+                            <select id="youthChatRecipient" class="w-full text-[11px] p-2 rounded-xl border border-slate-200 bg-slate-50 font-bold">
+                                <option value="أمين الخدمة">أمين الخدمة</option>
+                                <option value="خادم الفصل">خادم الفصل</option>
+                                <option value="أبونا كاهن الخدمة">أبونا كاهن الخدمة</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. قائمة محادثات المخدومين (تظهر للخادم فقط ليختار المخدوم ويرد عليه) -->
+                <div class="servant-only hidden bg-white p-3.5 rounded-2xl shadow-sm border border-amber-200 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-xs text-slate-800"><i class="fa-solid fa-inbox text-amber-600 ml-1"></i> صندوق محادثات المخدومين:</h3>
+                        <span id="totalThreadsBadge" class="text-[10px] bg-blue-100 text-blue-900 font-bold px-2 py-0.5 rounded-full">0 محادثات</span>
+                    </div>
+                    <p class="text-[10px] text-slate-500">اضغط على اسم المخدوم أو الكود السري لفتح محادثته والرد عليه:</p>
+                    <div id="servantThreadsList" class="flex gap-2 overflow-x-auto pb-1 pt-1"></div>
+                </div>
+
+                <!-- 3. نافذة الرسائل -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-80">
+                    <div id="activeChatHeader" class="bg-slate-100 px-4 py-2 border-b border-slate-200 text-xs font-extrabold text-blue-950 flex justify-between items-center">
+                        <span>المحادثة المباشرة</span>
+                    </div>
+                    <div id="chatMessagesBox" class="flex-1 p-3.5 overflow-y-auto space-y-2.5 flex flex-col"></div>
+                    <div class="p-2 bg-slate-50 border-t border-slate-200 flex gap-2">
+                        <input id="chatInput" onkeydown="if(event.key==='Enter') sendChatMessage()" type="text" placeholder="اكتب رسالتك هنا..." class="flex-1 text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-800">
+                        <button onclick="sendChatMessage()" class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-xl text-xs font-bold transition">
+                            إرسال <i class="fa-solid fa-paper-plane mr-1"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 6: ATTENDANCE & PROFILE -->
+            <section id="tab-attendance" class="tab-content hidden space-y-4">
+                <div class="youth-only space-y-4">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 text-center space-y-3">
+                        <span class="bg-blue-100 text-blue-900 text-xs font-bold px-3 py-1 rounded-full">كارت العضوية الذكي (QR)</span>
+                        <h3 id="cardYouthName" class="font-extrabold text-base text-slate-800"></h3>
+                        <p id="cardYouthInfo" class="text-xs text-slate-500"></p>
+                        <div class="w-36 h-36 mx-auto bg-slate-900 p-3 rounded-2xl flex items-center justify-center shadow-inner">
+                            <i class="fa-solid fa-qrcode text-white text-7xl"></i>
+                        </div>
+                        <div id="myAttendanceStatus" class="text-xs font-bold py-2 rounded-xl"></div>
+                    </div>
+                </div>
+
+                <div class="servant-only hidden space-y-4">
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-white p-3 rounded-2xl border border-slate-200">
+                            <span class="text-[10px] text-slate-500 block">إجمالي الحسابات</span>
+                            <span id="statTotal" class="font-extrabold text-base text-slate-800">0</span>
+                        </div>
+                        <div class="bg-emerald-50 p-3 rounded-2xl border border-emerald-200">
+                            <span class="text-[10px] text-emerald-700 block">حضور اليوم</span>
+                            <span id="statPresent" class="font-extrabold text-base text-emerald-700">0</span>
+                        </div>
+                        <div class="bg-red-50 p-3 rounded-2xl border border-red-200">
+                            <span class="text-[10px] text-red-700 block">غياب (للافتقاد)</span>
+                            <span id="statAbsent" class="font-extrabold text-base text-red-700">0</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-bold text-xs text-slate-800">كشف المخدومين المسجلين والحضور</h3>
+                            <select id="filterGrade" onchange="renderYouthList()" class="text-xs p-1.5 rounded-lg border bg-slate-50 font-bold">
+                                <option value="الكل">كل الدفعات</option>
+                                <option value="أولى ثانوي">أولى ثانوي</option>
+                                <option value="تانية ثانوي">تانية ثانوي</option>
+                                <option value="تالتة ثانوي">تالتة ثانوي</option>
+                            </select>
+                        </div>
+                        <div id="youthDirectoryList" class="space-y-2.5"></div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Join Segment Modal -->
+        <div id="joinModal" class="fixed inset-0 bg-black/60 z-40 hidden items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-2xl p-5 space-y-3 shadow-2xl">
+                <h3 class="font-extrabold text-sm text-slate-800">طلب المشاركة في فقرة</h3>
+                <p id="joinSegmentName" class="text-xs text-blue-800 font-bold"></p>
+                <input id="joinTalent" type="text" placeholder="حابب تشارك بإيه؟ (ترنيم، عزف، تمثيل، تنظيم)" class="w-full text-xs p-2.5 rounded-xl border border-slate-200">
+                <div class="flex gap-2 pt-2">
+                    <button onclick="confirmJoinSegment()" class="flex-1 bg-blue-900 text-white text-xs font-bold py-2.5 rounded-xl">إرسال الطلب</button>
+                    <button onclick="closeJoinModal()" class="px-4 bg-slate-200 text-slate-700 text-xs font-bold py-2.5 rounded-xl">إلغاء</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="fixed inset-0 bg-black/60 z-40 hidden items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-3xl p-5 space-y-3 shadow-2xl">
+                <h3 class="font-extrabold text-sm text-slate-800">إعدادات الكنيسة والخدمة</h3>
+                <div class="space-y-2 text-xs">
+                    <div>
+                        <label class="font-bold text-slate-600 block mb-0.5">اسم الكنيسة:</label>
+                        <input id="setChurchName" type="text" class="w-full p-2 rounded-xl border">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 block mb-0.5">اسم الخدمة:</label>
+                        <input id="setServiceName" type="text" class="w-full p-2 rounded-xl border">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 block mb-0.5">موعد الاجتماع:</label>
+                        <input id="setMeetingTime" type="text" class="w-full p-2 rounded-xl border">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 block mb-0.5">آية الأسبوع:</label>
+                        <input id="setVerse" type="text" class="w-full p-2 rounded-xl border">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 block mb-0.5">كود التحقق لإنشاء حساب خادم:</label>
+                        <input id="setServantPin" type="text" class="w-full p-2 rounded-xl border font-bold text-blue-900">
+                    </div>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button onclick="saveChurchSettings()" class="flex-1 bg-blue-900 text-white text-xs font-bold py-2.5 rounded-xl">حفظ التعديلات</button>
+                    <button onclick="closeSettingsModal()" class="px-4 bg-slate-200 text-slate-700 text-xs font-bold py-2.5 rounded-xl">إلغاء</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <nav class="fixed bottom-0 w-full max-w-md bg-white border-t border-slate-200 px-1 py-2 grid grid-cols-6 items-center z-30 shadow-lg">
+            <button onclick="switchTab('home', this)" class="nav-btn flex flex-col items-center text-blue-900 font-bold text-[10px] gap-1">
+                <i class="fa-solid fa-bullhorn text-sm"></i><span>الإعلانات</span>
+            </button>
+            <button onclick="switchTab('segments', this)" class="nav-btn flex flex-col items-center text-slate-400 font-semibold text-[10px] gap-1">
+                <i class="fa-solid fa-calendar-check text-sm"></i><span>الفقرات</span>
+            </button>
+            <button onclick="switchTab('spiritual', this)" class="nav-btn flex flex-col items-center text-slate-400 font-semibold text-[10px] gap-1">
+                <i class="fa-solid fa-music text-sm"></i><span>ترانيم ومسابقات</span>
+            </button>
+            <button onclick="switchTab('qa', this)" class="nav-btn flex flex-col items-center text-slate-400 font-semibold text-[10px] gap-1">
+                <i class="fa-solid fa-circle-question text-sm"></i><span>سؤال سري</span>
+            </button>
+            <button onclick="switchTab('chat', this)" class="nav-btn flex flex-col items-center text-slate-400 font-semibold text-[10px] gap-1 relative">
+                <i class="fa-solid fa-comments text-sm"></i><span>شات سري</span>
+            </button>
+            <button onclick="switchTab('attendance', this)" class="nav-btn flex flex-col items-center text-slate-400 font-semibold text-[10px] gap-1">
+                <i class="fa-solid fa-id-badge text-sm"></i><span>الحضور</span>
+            </button>
+        </nav>
+
+    </div>
+
+    <script>
+        // =========================================================================
+        // إعداد رابط FIREBASE (اختياري للمزامنة عبر الإنترنت بين موبايلات مختلفة)
+        // =========================================================================
+        const firebaseConfig = {
+            databaseURL: "PASTE_YOUR_DATABASE_URL_HERE"
+        };
+
+        let db = null;
+        let isCloudConnected = false;
+        // قناة اتصال فورية بين التابات المفتوحة على نفس الجهاز للتجربة الفورية
+        const syncChannel = new BroadcastChannel('thanawy_realtime_sync');
+
+        let currentUser = null; // الحساب المسجل حالياً
+        let regSelectedRole = 'youth';
+        let selectedSegmentId = null;
+        let selectedChatThreadId = null; // المحادثة المختارة عند الخادم
+
+        // هيكل البيانات الموحد
+        let state = {
+            appSettings: {
+                churchName: 'كنيسة السيدة العذراء مريم والأنبا أثناسيوس',
+                serviceName: 'خدمة ثانوي بنين',
+                meetingTime: 'الجمعة الساعة 6:30 مساءً',
+                verse: '"لاَ يَسْتَهِنْ أَحَدٌ بِحَدَاثَتِكَ، بَلْ كُنْ قُدْوَةً لِلْمُؤْمِنِينَ" (1 تي 4: 12)',
+                servantPin: '1234'
+            },
+            users: [
+                { id: 'u_youth_1', name: 'مينا جرجس صموئيل', phone: '01200000001', password: '123', role: 'youth', grade: 'تانية ثانوي', father: 'أبونا أنطونيوس', anonCode: 'كود سري #402', present: true },
+                { id: 'u_youth_2', name: 'بيشوي عماد نصيف', phone: '01200000002', password: '123', role: 'youth', grade: 'أولى ثانوي', father: 'أبونا متى', anonCode: 'كود سري #819', present: false },
+                { id: 'u_servant_1', name: 'أ. كيرلس فوزي', phone: '01000000001', password: '123', role: 'servant' }
+            ],
+            announcements: [
+                { id: '1', tag: 'الاجتماع', title: 'موضوع اجتماع الجمعة القادمة: "كيف أنتصر على حروب الفكر؟"', body: 'هيكون معانا قدس أبونا دانيال، ومفاجأة في فقرة المسابقات. متتأخروش!', time: 'منذ ساعتين' }
+            ],
+            segments: [
+                { id: '1', title: 'فقرة التسبيح والترانيم', time: '6:30 م', desc: 'مطلوب شباب للترنيم أو العزف أو تشغيل كلمات الترانيم على الداتا شو.' },
+                { id: '2', title: 'اسكتش مسرحي قصير', time: '7:00 م', desc: 'اسكتش هادف مدته 10 دقائق، مطلوب 3 شباب للتمثيل.' }
+            ],
+            segmentRequests: [],
+            hymnsList: [
+                { id: '1', title: 'أمسك يارب إيدي', category: 'ترانيم روحية', lyrics: 'أمسك يارب إيدي زي بطرس زمان .. لما شاف الأمواج خاف وقلبه كمان\nإنت مديت إيديك ورفعته للأمان .. مد إيدك ليا أنا محتاج حنان.' }
+            ],
+            quizQuestions: [
+                { id: '1', question: 'من هو النبي الذي ابتلعه الحوت لمدة ثلاثة أيام؟', options: ['إيليا النبي', 'يونان النبي', 'دانيال النبي'], correct: 1, ref: 'سفر يونان 1: 17' }
+            ],
+            secretQuestions: [
+                { id: '1', category: 'حياة روحية', text: 'كل ما أبدأ أنتظم في قراءة الإنجيل والصلاة بقع تاني بعد يومين، أعمل إيه؟', answer: 'ابدأ بـ 5 دقائق فقط يومياً وآية واحدة بتأمل، ولو وقع يوم قوم كمل فوراً بدون إحباط.', answered: true }
+            ],
+            // نظام غرف المحادثات الفردية (كل مخدوم له غرفة خاصة يراها الخادم ويرد عليها)
+            chatThreads: {
+                'u_youth_1': {
+                    threadId: 'u_youth_1',
+                    displayName: 'كود سري #402',
+                    recipient: 'أمين الخدمة',
+                    lastUpdate: '8:15 م',
+                    messages: [
+                        { senderRole: 'youth', senderName: 'كود سري #402', text: 'سلام يا أستاذي، كنت محتاج آخد رأي حضرتك في مشكلة خاصة.', time: '8:15 م' },
+                        { senderRole: 'servant', senderName: 'أ. كيرلس فوزي', text: 'أهلاً بيك يا حبيبي، اتفضل احكيلي براحتك وأنا معاك في سرية تامة.', time: '8:17 م' }
+                    ]
+                }
+            }
+        };
+
+        let quizScore = parseInt(localStorage.getItem('youth_quiz_score') || '0', 10);
+        let answeredQuizzesLocal = JSON.parse(localStorage.getItem('answered_quizzes') || '{}');
+
+        // --- المزامنة والحفظ (Local + BroadcastChannel + Firebase) ---
+        function initSync() {
+            const savedLocal = localStorage.getItem('thanawy_master_db_v2');
+            if (savedLocal) {
+                try { state = JSON.parse(savedLocal); } catch(e) {}
+            }
+
+            // الاستماع لأي تعديل يحدث من نافذة أخرى مفتوحة على نفس الجهاز
+            syncChannel.onmessage = (event) => {
+                if (event.data) {
+                    state = event.data;
+                    renderAll();
+                }
+            };
+
+            // الاتصال بـ Firebase إذا تم وضع الرابط
+            const badge = document.getElementById('cloudStatusBadge');
+            if (firebaseConfig.databaseURL && !firebaseConfig.databaseURL.includes("PASTE_YOUR")) {
+                try {
+                    firebase.initializeApp(firebaseConfig);
+                    db = firebase.database();
+                    isCloudConnected = true;
+                    badge.innerHTML = '🟢 متصل بقاعدة بيانات Firebase السحابية';
+                    db.ref('thanawyAppV2').on('value', (snap) => {
+                        const cloudData = snap.val();
+                        if (cloudData) {
+                            state = cloudData;
+                            if (!state.chatThreads) state.chatThreads = {};
+                            localStorage.setItem('thanawy_master_db_v2', JSON.stringify(state));
+                            renderAll();
+                        } else {
+                            saveState();
+                        }
+                    });
+                } catch (e) {}
+            }
+            renderAll();
+        }
+
+        function saveState() {
+            localStorage.setItem('thanawy_master_db_v2', JSON.stringify(state));
+            syncChannel.postMessage(state);
+            if (isCloudConnected && db) {
+                db.ref('thanawyAppV2').set(state);
+            }
+            renderAll();
+        }
+
+        // --- نظام الحسابات (تسجيل دخول وإنشاء حساب جديد) ---
+        function setAuthMode(mode) {
+            const btnLogin = document.getElementById('btnModeLogin');
+            const btnReg = document.getElementById('btnModeRegister');
+            const loginBox = document.getElementById('loginBox');
+            const regBox = document.getElementById('registerBox');
+
+            if (mode === 'login') {
+                btnLogin.className = 'flex-1 py-2 rounded-xl text-xs font-extrabold bg-amber-500 text-slate-950 transition';
+                btnReg.className = 'flex-1 py-2 rounded-xl text-xs font-bold text-white transition';
+                loginBox.classList.remove('hidden');
+                regBox.classList.add('hidden');
+            } else {
+                btnReg.className = 'flex-1 py-2 rounded-xl text-xs font-extrabold bg-amber-500 text-slate-950 transition';
+                btnLogin.className = 'flex-1 py-2 rounded-xl text-xs font-bold text-white transition';
+                regBox.classList.remove('hidden');
+                loginBox.classList.add('hidden');
+            }
+        }
+
+        function setRegRole(role) {
+            regSelectedRole = role;
+            const yBtn = document.getElementById('regRoleYouthBtn');
+            const sBtn = document.getElementById('regRoleServantBtn');
+            const yFields = document.getElementById('regYouthFields');
+            const sFields = document.getElementById('regServantFields');
+
+            if (role === 'youth') {
+                yBtn.className = 'py-1.5 rounded-lg text-xs font-extrabold bg-blue-900 text-white transition';
+                sBtn.className = 'py-1.5 rounded-lg text-xs font-bold text-slate-600 transition';
+                yFields.classList.remove('hidden');
+                sFields.classList.add('hidden');
+            } else {
+                sBtn.className = 'py-1.5 rounded-lg text-xs font-extrabold bg-amber-500 text-slate-950 transition';
+                yBtn.className = 'py-1.5 rounded-lg text-xs font-bold text-slate-600 transition';
+                sFields.classList.remove('hidden');
+                yFields.classList.add('hidden');
+            }
+        }
+
+        function registerUser() {
+            const name = document.getElementById('regName').value.trim();
+            const phone = document.getElementById('regPhone').value.trim();
+            const password = document.getElementById('regPassword').value.trim();
+            const err = document.getElementById('regErrorMsg');
+
+            if (!name || !phone || !password) {
+                err.textContent = 'من فضلك املأ الاسم ورقم الموبايل وكلمة السر!';
+                err.classList.remove('hidden');
+                return;
+            }
+
+            if (state.users.some(u => u.phone === phone)) {
+                err.textContent = 'رقم الموبايل ده مسجل بيه حساب قبل كده! ادخل من تسجيل الدخول.';
+                err.classList.remove('hidden');
+                return;
+            }
+
+            if (regSelectedRole === 'servant') {
+                const pin = document.getElementById('regServantPin').value.trim();
+                if (pin !== state.appSettings.servantPin) {
+                    err.textContent = 'كود التحقق الخاص بالخدام غير صحيح!';
+                    err.classList.remove('hidden');
+                    return;
+                }
+            }
+
+            const newUser = {
+                id: 'u_' + Date.now(),
+                name,
+                phone,
+                password,
+                role: regSelectedRole,
+                grade: regSelectedRole === 'youth' ? document.getElementById('regGrade').value : 'خادم',
+                father: regSelectedRole === 'youth' ? (document.getElementById('regFather').value.trim() || 'غير مسجل') : '',
+                anonCode: 'كود سري #' + Math.floor(100 + Math.random() * 900),
+                present: true
+            };
+
+            state.users.push(newUser);
+            err.classList.add('hidden');
+            saveState();
+            completeLogin(newUser);
+            showToast('🎉 تم إنشاء حسابك بنجاح', 'أهلاً بك يا ' + newUser.name + ' في تطبيق الخدمة!');
+        }
+
+        function loginUser() {
+            const phone = document.getElementById('loginPhone').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            const err = document.getElementById('authErrorMsg');
+
+            const user = state.users.find(u => u.phone === phone && u.password === password);
+            if (!user) {
+                err.textContent = 'رقم الموبايل أو كلمة السر غير صحيحة!';
+                err.classList.remove('hidden');
+                return;
+            }
+
+            err.classList.add('hidden');
+            completeLogin(user);
+        }
+
+        function completeLogin(user) {
+            currentUser = user;
+            document.getElementById('authScreen').classList.add('hidden');
+
+            const subtext = document.getElementById('roleSubtext');
+            if (user.role === 'youth') {
+                subtext.textContent = 'المخدوم: ' + user.name + ' (' + user.grade + ')';
+                document.querySelectorAll('.youth-only').forEach(el => el.classList.remove('hidden'));
+                document.querySelectorAll('.servant-only').forEach(el => el.classList.add('hidden'));
+            } else {
+                subtext.textContent = 'الخادم: ' + user.name;
+                document.querySelectorAll('.youth-only').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('.servant-only').forEach(el => el.classList.remove('hidden'));
+            }
+            renderAll();
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('authScreen').classList.remove('hidden');
+        }
+
+        // --- الشات السري المباشر (إصلاح كامل للتواصل بين المخدوم والخادم) ---
+        function renderChatSection() {
+            if (!currentUser) return;
+            if (!state.chatThreads) state.chatThreads = {};
+
+            const messagesBox = document.getElementById('chatMessagesBox');
+            const header = document.getElementById('activeChatHeader');
+
+            // أ) إذا كان المستخدم الحالي "مخدوم": يرى محادثته الخاصة فقط مع الخدام
+            if (currentUser.role === 'youth') {
+                const myThread = state.chatThreads[currentUser.id];
+                const mode = document.getElementById('youthChatIdentityMode').value;
+                const shownIdentity = mode === 'anon' ? currentUser.anonCode : currentUser.name;
+                header.innerHTML = `<span>محادثتك مع الخادم (تظهر باسم: <b class="text-amber-600">${shownIdentity}</b>)</span>`;
+
+                if (!myThread || !myThread.messages || myThread.messages.length === 0) {
+                    messagesBox.innerHTML = `<p class="text-xs text-slate-400 text-center my-auto">ابعت رسالتك للخادم وهيرد عليك هنا في سرية تامة...</p>`;
+                } else {
+                    messagesBox.innerHTML = myThread.messages.map(m => {
+                        const isMe = m.senderRole === 'youth';
+                        return `
+                            <div class="flex flex-col ${isMe ? 'items-start' : 'items-end'}">
+                                <span class="text-[10px] text-slate-400 mb-0.5 px-1">${m.senderName} • ${m.time}</span>
+                                <div class="max-w-[82%] p-3 rounded-2xl text-xs leading-relaxed ${isMe ? 'bg-blue-900 text-white rounded-tr-none' : 'bg-amber-50 text-slate-800 rounded-tl-none border border-amber-200'}">
+                                    ${m.text}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    messagesBox.scrollTop = messagesBox.scrollHeight;
+                }
+            }
+            // ب) إذا كان المستخدم الحالي "خادم": يرى قائمة بكل محادثات المخدومين ويختار أي محادثة للرد عليها
+            else {
+                const threadsArray = Object.values(state.chatThreads);
+                document.getElementById('totalThreadsBadge').textContent = threadsArray.length + ' محادثات';
+                const listContainer = document.getElementById('servantThreadsList');
+
+                if (threadsArray.length === 0) {
+                    listContainer.innerHTML = `<span class="text-xs text-slate-400">لا توجد رسائل من المخدومين بعد.</span>`;
+                    header.innerHTML = `<span>لا توجد محادثة مفتوحة</span>`;
+                    messagesBox.innerHTML = `<p class="text-xs text-slate-400 text-center my-auto">عندما يرسل أي مخدوم رسالة ستظهر هنا فوراً.</p>`;
+                    return;
+                }
+
+                if (!selectedChatThreadId || !state.chatThreads[selectedChatThreadId]) {
+                    selectedChatThreadId = threadsArray[0].threadId;
+                }
+
+                listContainer.innerHTML = threadsArray.map(t => {
+                    const isSelected = t.threadId === selectedChatThreadId;
+                    const lastMsg = t.messages && t.messages.length > 0 ? t.messages[t.messages.length - 1] : null;
+                    const needsReply = lastMsg && lastMsg.senderRole === 'youth';
+                    return `
+                        <button onclick="selectServantThread('${t.threadId}')" class="shrink-0 px-3 py-2 rounded-xl border text-right transition flex items-center gap-2 ${isSelected ? 'bg-blue-900 text-white border-blue-900 shadow' : 'bg-slate-50 text-slate-700 border-slate-200'}">
+                            <div>
+                                <p class="text-xs font-extrabold">${t.displayName}</p>
+                                <p class="text-[10px] ${isSelected ? 'text-amber-300' : 'text-slate-400'}">إلى: ${t.recipient}</p>
+                            </div>
+                            ${needsReply ? `<span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" title="رسالة جديدة"></span>` : ''}
+                        </button>
+                    `;
+                }).join('');
+
+                const activeThread = state.chatThreads[selectedChatThreadId];
+                header.innerHTML = `<span>الرد على المخدوم: <b class="text-amber-700">${activeThread.displayName}</b> (موجه لـ ${activeThread.recipient})</span>`;
+
+                messagesBox.innerHTML = (activeThread.messages || []).map(m => {
+                    const isMe = m.senderRole === 'servant';
+                    return `
+                        <div class="flex flex-col ${isMe ? 'items-start' : 'items-end'}">
+                            <span class="text-[10px] text-slate-400 mb-0.5 px-1">${m.senderName} • ${m.time}</span>
+                            <div class="max-w-[82%] p-3 rounded-2xl text-xs leading-relaxed ${isMe ? 'bg-blue-900 text-white rounded-tr-none' : 'bg-slate-100 text-slate-800 rounded-tl-none border border-slate-200'}">
+                                ${m.text}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                messagesBox.scrollTop = messagesBox.scrollHeight;
+            }
+        }
+
+        function selectServantThread(threadId) {
+            selectedChatThreadId = threadId;
+            renderChatSection();
+        }
+
+        function sendChatMessage() {
+            if (!currentUser) return;
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const now = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+            if (!state.chatThreads) state.chatThreads = {};
+
+            if (currentUser.role === 'youth') {
+                const mode = document.getElementById('youthChatIdentityMode').value;
+                const displayName = mode === 'anon' ? currentUser.anonCode : (currentUser.name + ' - ' + currentUser.grade);
+                const recipient = document.getElementById('youthChatRecipient').value;
+
+                if (!state.chatThreads[currentUser.id]) {
+                    state.chatThreads[currentUser.id] = {
+                        threadId: currentUser.id,
+                        displayName,
+                        recipient,
+                        lastUpdate: now,
+                        messages: []
+                    };
+                } else {
+                    state.chatThreads[currentUser.id].displayName = displayName;
+                    state.chatThreads[currentUser.id].recipient = recipient;
+                    state.chatThreads[currentUser.id].lastUpdate = now;
+                }
+
+                state.chatThreads[currentUser.id].messages.push({
+                    senderRole: 'youth',
+                    senderName: displayName,
+                    text,
+                    time: now
+                });
+            } else {
+                if (!selectedChatThreadId || !state.chatThreads[selectedChatThreadId]) {
+                    showToast('تنبيه', 'اختر محادثة مخدوم أولاً للرد عليها');
+                    return;
+                }
+                state.chatThreads[selectedChatThreadId].messages.push({
+                    senderRole: 'servant',
+                    senderName: currentUser.name,
+                    text,
+                    time: now
+                });
+            }
+
+            input.value = '';
+            saveState();
+        }
+
+        // --- باقي وظائف التطبيق ---
+        function applyChurchSettings() {
+            document.getElementById('loginChurchName').textContent = state.appSettings.churchName;
+            document.getElementById('loginServiceName').textContent = state.appSettings.serviceName;
+            document.getElementById('headerChurchName').textContent = state.appSettings.churchName;
+            document.getElementById('headerServiceName').textContent = state.appSettings.serviceName;
+            document.getElementById('headerMeetingTime').textContent = state.appSettings.meetingTime;
+            document.getElementById('headerVerse').textContent = state.appSettings.verse;
+        }
+
+        function openSettingsModal() {
+            document.getElementById('setChurchName').value = state.appSettings.churchName;
+            document.getElementById('setServiceName').value = state.appSettings.serviceName;
+            document.getElementById('setMeetingTime').value = state.appSettings.meetingTime;
+            document.getElementById('setVerse').value = state.appSettings.verse;
+            document.getElementById('setServantPin').value = state.appSettings.servantPin;
+            document.getElementById('settingsModal').classList.remove('hidden');
+            document.getElementById('settingsModal').classList.add('flex');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').classList.add('hidden');
+            document.getElementById('settingsModal').classList.remove('flex');
+        }
+
+        function saveChurchSettings() {
+            state.appSettings.churchName = document.getElementById('setChurchName').value.trim() || state.appSettings.churchName;
+            state.appSettings.serviceName = document.getElementById('setServiceName').value.trim() || state.appSettings.serviceName;
+            state.appSettings.meetingTime = document.getElementById('setMeetingTime').value.trim() || state.appSettings.meetingTime;
+            state.appSettings.verse = document.getElementById('setVerse').value.trim() || state.appSettings.verse;
+            state.appSettings.servantPin = document.getElementById('setServantPin').value.trim() || '1234';
+            saveState();
+            closeSettingsModal();
+            showToast('✅ تم الحفظ', 'تم تحديث إعدادات الخدمة بنجاح.');
+        }
+
+        function switchTab(tabName, btnElement) {
+            document.querySelectorAll('.tab-content').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById('tab-' + tabName).classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-blue-900', 'font-bold');
+                btn.classList.add('text-slate-400', 'font-semibold');
+            });
+            btnElement.classList.remove('text-slate-400', 'font-semibold');
+            btnElement.classList.add('text-blue-900', 'font-bold');
+        }
+
+        function switchSpiritualSubTab(sub) {
+            document.getElementById('subtab-hymns').classList.toggle('hidden', sub !== 'hymns');
+            document.getElementById('subtab-quiz').classList.toggle('hidden', sub !== 'quiz');
+            document.getElementById('btnSubHymns').className = sub === 'hymns' ? 'flex-1 py-2 rounded-xl text-xs font-extrabold bg-blue-900 text-white shadow' : 'flex-1 py-2 rounded-xl text-xs font-bold text-slate-700';
+            document.getElementById('btnSubQuiz').className = sub === 'quiz' ? 'flex-1 py-2 rounded-xl text-xs font-extrabold bg-blue-900 text-white shadow' : 'flex-1 py-2 rounded-xl text-xs font-bold text-slate-700';
+        }
+
+        function showToast(title, body) {
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastBody').textContent = body;
+            const toast = document.getElementById('pushToast');
+            toast.classList.remove('-translate-y-32', 'opacity-0');
+            setTimeout(hideToast, 4000);
+        }
+
+        function hideToast() {
+            document.getElementById('pushToast').classList.add('-translate-y-32', 'opacity-0');
+        }
+
+        function renderAnnouncements() {
+            document.getElementById('announcementsList').innerHTML = (state.announcements || []).map(a => `
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-1">
+                    <div class="flex justify-between items-center">
+                        <span class="bg-blue-100 text-blue-900 text-[10px] font-bold px-2.5 py-0.5 rounded-full">${a.tag}</span>
+                        <span class="text-[10px] text-slate-400">${a.time}</span>
+                    </div>
+                    <h3 class="font-bold text-sm text-slate-800">${a.title}</h3>
+                    <p class="text-xs text-slate-600">${a.body}</p>
+                </div>
+            `).join('');
+        }
+
+        function addAnnouncement() {
+            const title = document.getElementById('newAnnTitle').value.trim();
+            const body = document.getElementById('newAnnBody').value.trim();
+            const tag = document.getElementById('newAnnTag').value;
+            if (!title || !body) return;
+            const now = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+            state.announcements.unshift({ id: String(Date.now()), tag, title, body, time: now });
+            document.getElementById('newAnnTitle').value = '';
+            document.getElementById('newAnnBody').value = '';
+            saveState();
+            showToast('📢 ' + title, body);
+        }
+
+        function renderSegments() {
+            document.getElementById('segmentsList').innerHTML = (state.segments || []).map(s => `
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-extrabold text-sm text-slate-800">${s.title}</h3>
+                        <span class="bg-amber-100 text-amber-800 text-[11px] font-bold px-2.5 py-0.5 rounded-lg">${s.time}</span>
+                    </div>
+                    <p class="text-xs text-slate-600">${s.desc}</p>
+                    ${currentUser && currentUser.role === 'youth' ? `
+                        <button onclick="openJoinModal('${s.id}')" class="w-full mt-2 bg-slate-100 hover:bg-blue-900 hover:text-white text-blue-900 font-bold text-xs py-2 rounded-xl transition">طلب اشتراك في الفقرة</button>
+                    ` : ''}
+                </div>
+            `).join('');
+
+            const reqContainer = document.getElementById('segmentRequestsList');
+            const reqs = state.segmentRequests || [];
+            reqContainer.innerHTML = reqs.length === 0 ? `<p class="text-xs text-slate-400">لا توجد طلبات بعد.</p>` : reqs.map(r => `
+                <div class="p-3 rounded-xl bg-slate-50 border flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-xs text-slate-800">${r.youthName}</p>
+                        <p class="text-[11px] text-blue-800 font-semibold">${r.segmentTitle} (${r.talent})</p>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${r.status === 'تم القبول' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${r.status}</span>
+                    </div>
+                    ${r.status === 'قيد المراجعة' ? `<button onclick="approveRequest('${r.id}')" class="bg-emerald-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg">قبول</button>` : `<i class="fa-solid fa-circle-check text-emerald-600"></i>`}
+                </div>
+            `).join('');
+        }
+
+        function addSegment() {
+            const title = document.getElementById('segTitle').value.trim();
+            const time = document.getElementById('segTime').value.trim() || '7:00 م';
+            const desc = document.getElementById('segDesc').value.trim();
+            if (!title) return;
+            state.segments.push({ id: String(Date.now()), title, time, desc });
+            document.getElementById('segTitle').value = '';
+            document.getElementById('segTime').value = '';
+            document.getElementById('segDesc').value = '';
+            saveState();
+        }
+
+        function openJoinModal(segId) {
+            selectedSegmentId = segId;
+            const seg = state.segments.find(s => String(s.id) === String(segId));
+            document.getElementById('joinSegmentName').textContent = seg.title;
+            document.getElementById('joinModal').classList.remove('hidden');
+            document.getElementById('joinModal').classList.add('flex');
+        }
+
+        function closeJoinModal() {
+            document.getElementById('joinModal').classList.add('hidden');
+            document.getElementById('joinModal').classList.remove('flex');
+        }
+
+        function confirmJoinSegment() {
+            if (!currentUser) return;
+            const seg = state.segments.find(s => String(s.id) === String(selectedSegmentId));
+            const talent = document.getElementById('joinTalent').value.trim() || 'مشاركة';
+            state.segmentRequests.unshift({
+                id: String(Date.now()),
+                segmentTitle: seg.title,
+                youthName: currentUser.name + ' (' + currentUser.grade + ')',
+                talent,
+                status: 'قيد المراجعة'
+            });
+            document.getElementById('joinTalent').value = '';
+            closeJoinModal();
+            saveState();
+            showToast('✅ تم إرسال طلبك', 'وصل طلبك للخادم المسؤول.');
+        }
+
+        function approveRequest(reqId) {
+            const req = state.segmentRequests.find(r => String(r.id) === String(reqId));
+            if (req) {
+                req.status = 'تم القبول';
+                saveState();
+            }
+        }
+
+        function renderHymns() {
+            const q = (document.getElementById('hymnSearch')?.value || '').trim().toLowerCase();
+            const filtered = (state.hymnsList || []).filter(h => h.title.toLowerCase().includes(q) || h.lyrics.toLowerCase().includes(q));
+            document.getElementById('hymnsList').innerHTML = filtered.map(h => `
+                <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-2">
+                    <div class="flex justify-between items-center">
+                        <h4 class="font-extrabold text-sm text-blue-950">${h.title}</h4>
+                        <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full">${h.category}</span>
+                    </div>
+                    <p class="text-xs text-slate-600 whitespace-pre-line bg-slate-50 p-3 rounded-xl">${h.lyrics}</p>
+                </div>
+            `).join('');
+        }
+
+        function addHymn() {
+            const title = document.getElementById('newHymnTitle').value.trim();
+            const category = document.getElementById('newHymnCat').value;
+            const lyrics = document.getElementById('newHymnLyrics').value.trim();
+            if (!title || !lyrics) return;
+            state.hymnsList.unshift({ id: String(Date.now()), title, category, lyrics });
+            document.getElementById('newHymnTitle').value = '';
+            document.getElementById('newHymnLyrics').value = '';
+            saveState();
+        }
+
+        function renderQuiz() {
+            document.getElementById('quizScoreDisplay').textContent = quizScore + ' نقطة';
+            document.getElementById('quizQuestionsList').innerHTML = (state.quizQuestions || []).map((q, idx) => {
+                const userAns = answeredQuizzesLocal[q.id];
+                const isAnswered = userAns !== undefined;
+                return `
+                <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-2.5">
+                    <div class="flex justify-between">
+                        <span class="bg-blue-100 text-blue-900 text-[10px] font-bold px-2.5 py-0.5 rounded-full">سؤال ${idx + 1}</span>
+                        <span class="text-[10px] text-slate-400 font-bold">${q.ref}</span>
+                    </div>
+                    <h4 class="font-bold text-xs text-slate-800">${q.question}</h4>
+                    <div class="space-y-1.5">
+                        ${q.options.map((opt, optIdx) => {
+                            let style = 'bg-slate-50 text-slate-700 border-slate-200';
+                            if (isAnswered) {
+                                if (optIdx === q.correct) style = 'bg-emerald-600 text-white border-emerald-600';
+                                else if (optIdx === userAns) style = 'bg-red-500 text-white border-red-500';
+                            }
+                            return `<button onclick="answerQuiz('${q.id}', ${optIdx})" ${isAnswered ? 'disabled' : ''} class="w-full text-right text-xs font-bold p-2.5 rounded-xl border ${style}">${opt}</button>`;
+                        }).join('')}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function answerQuiz(qId, optIdx) {
+            const q = state.quizQuestions.find(item => String(item.id) === String(qId));
+            if (!q || answeredQuizzesLocal[qId] !== undefined) return;
+            answeredQuizzesLocal[qId] = optIdx;
+            localStorage.setItem('answered_quizzes', JSON.stringify(answeredQuizzesLocal));
+            if (optIdx === q.correct) {
+                quizScore += 10;
+                localStorage.setItem('youth_quiz_score', String(quizScore));
+                showToast('🎉 إجابة صحيحة!', '+10 نقاط');
+            } else {
+                showToast('إجابة خاطئة', 'الصحيحة: ' + q.options[q.correct]);
+            }
+            renderQuiz();
+        }
+
+        function addQuizQuestion() {
+            const question = document.getElementById('newQuizQ').value.trim();
+            const opt0 = document.getElementById('newQuizOpt0').value.trim();
+            const opt1 = document.getElementById('newQuizOpt1').value.trim();
+            const opt2 = document.getElementById('newQuizOpt2').value.trim();
+            const correct = parseInt(document.getElementById('newQuizCorrect').value, 10);
+            const ref = document.getElementById('newQuizRef').value.trim() || 'الكتاب المقدس';
+            if (!question || !opt0 || !opt1 || !opt2) return;
+            state.quizQuestions.unshift({ id: String(Date.now()), question, options: [opt0, opt1, opt2], correct, ref });
+            document.getElementById('newQuizQ').value = '';
+            document.getElementById('newQuizOpt0').value = '';
+            document.getElementById('newQuizOpt1').value = '';
+            document.getElementById('newQuizOpt2').value = '';
+            saveState();
+        }
+
+        function renderQuestions() {
+            const list = state.secretQuestions || [];
+            const answered = list.filter(q => q.answered);
+            const pending = list.filter(q => !q.answered);
+
+            document.getElementById('answeredQuestionsList').innerHTML = answered.map(q => `
+                <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-2">
+                    <span class="bg-purple-100 text-purple-900 text-[10px] font-bold px-2.5 py-0.5 rounded-full">${q.category}</span>
+                    <p class="font-bold text-xs text-slate-800">س: ${q.text}</p>
+                    <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-xs text-emerald-950">
+                        <span class="font-extrabold text-emerald-800 block mb-0.5">✙ إجابة الخادم:</span>${q.answer}
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('pendingQuestionsList').innerHTML = pending.length === 0 ? `<p class="text-xs text-slate-400">لا توجد أسئلة معلقة.</p>` : pending.map(q => `
+                <div class="p-3 rounded-xl bg-slate-50 border space-y-2">
+                    <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">${q.category}</span>
+                    <p class="font-bold text-xs text-slate-800">${q.text}</p>
+                    <div class="flex gap-2">
+                        <input id="ansInput-${q.id}" type="text" placeholder="اكتب الإجابة..." class="flex-1 text-xs p-2 rounded-lg border">
+                        <button onclick="answerQuestion('${q.id}')" class="bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">نشر</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function submitSecretQuestion() {
+            const category = document.getElementById('qaCategory').value;
+            const text = document.getElementById('qaText').value.trim();
+            if (!text) return;
+            state.secretQuestions.unshift({ id: String(Date.now()), category, text, answer: '', answered: false });
+            document.getElementById('qaText').value = '';
+            saveState();
+            showToast('🔒 تم الإرسال بسرية', 'وصل سؤالك للخدام بدون اسمك.');
+        }
+
+        function answerQuestion(qId) {
+            const ans = document.getElementById('ansInput-' + qId).value.trim();
+            if (!ans) return;
+            const q = state.secretQuestions.find(item => String(item.id) === String(qId));
+            if (q) {
+                q.answer = ans;
+                q.answered = true;
+                saveState();
+            }
+        }
+
+        function renderYouthList() {
+            const youths = (state.users || []).filter(u => u.role === 'youth');
+            if (currentUser && currentUser.role === 'youth') {
+                const me = youths.find(y => y.id === currentUser.id) || currentUser;
+                document.getElementById('cardYouthName').textContent = me.name;
+                document.getElementById('cardYouthInfo').textContent = `${me.grade} | أب الاعتراف: ${me.father} | ${me.phone}`;
+                const st = document.getElementById('myAttendanceStatus');
+                st.className = me.present ? 'text-xs font-bold py-2 rounded-xl bg-emerald-100 text-emerald-800' : 'text-xs font-bold py-2 rounded-xl bg-amber-100 text-amber-800';
+                st.textContent = me.present ? '✓ تم تسجيل حضورك في الاجتماع' : 'لم يتم تسجيل حضورك اليوم بعد';
+            }
+
+            const filter = document.getElementById('filterGrade').value;
+            const filtered = filter === 'الكل' ? youths : youths.filter(y => y.grade === filter);
+
+            document.getElementById('statTotal').textContent = youths.length;
+            document.getElementById('statPresent').textContent = youths.filter(y => y.present).length;
+            document.getElementById('statAbsent').textContent = youths.filter(y => !y.present).length;
+
+            document.getElementById('youthDirectoryList').innerHTML = filtered.map(y => `
+                <div class="p-3 rounded-xl border ${y.present ? 'bg-emerald-50/40 border-emerald-200' : 'bg-red-50/40 border-red-200'} flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-xs text-slate-800">${y.name}</p>
+                        <p class="text-[11px] text-slate-500">${y.grade} • أب الاعتراف: ${y.father}</p>
+                        <p class="text-[11px] text-blue-800 font-semibold"><i class="fa-solid fa-phone ml-1"></i>${y.phone}</p>
+                    </div>
+                    <button onclick="toggleAttendance('${y.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold ${y.present ? 'bg-emerald-600 text-white' : 'bg-red-100 text-red-700 border border-red-300'}">
+                        ${y.present ? '✓ حاضر' : 'غائب'}
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function toggleAttendance(id) {
+            const y = state.users.find(u => String(u.id) === String(id));
+            if (y) {
+                y.present = !y.present;
+                saveState();
+            }
+        }
+
+        function renderAll() {
+            applyChurchSettings();
+            renderAnnouncements();
+            renderSegments();
+            renderHymns();
+            renderQuiz();
+            renderQuestions();
+            renderChatSection();
+            renderYouthList();
+        }
+
+        initSync();
+    </script>
+</body>
+</html>
